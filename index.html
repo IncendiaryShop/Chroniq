@@ -834,38 +834,142 @@ body{margin:0;}
 }
 
 
-/* Mobile shift-timing editor */
-.time-fields{
-  display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:12px;
 }
-.time-fields .field{min-width:0;}
-.time-fields input[type="time"]{
+
+
+/* Compact default shift timing editor */
+#settingsOverlay .modal{
+  width:min(520px,calc(100vw - 24px));
+  padding:22px;
+}
+#settingsOverlay .modal h3{
+  font-size:18px;
+  letter-spacing:-.2px;
+  margin-bottom:18px;
+}
+#defaultsForm{display:flex;flex-direction:column;gap:8px;}
+.defaults-columns{
+  display:grid;
+  grid-template-columns:minmax(100px,1fr) minmax(105px,1fr) minmax(105px,1fr);
+  gap:10px;
+  padding:0 2px 4px;
+  color:var(--muted);
+  font-size:9px;
+  font-weight:700;
+  letter-spacing:1.2px;
+}
+.default-shift-row{
+  display:grid;
+  grid-template-columns:minmax(100px,1fr) minmax(105px,1fr) minmax(105px,1fr);
+  align-items:center;
+  gap:10px;
+  min-height:56px;
+  padding:8px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:rgba(255,255,255,.018);
+}
+.default-shift-label{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  min-width:0;
+}
+.default-shift-label strong{
+  display:grid;
+  place-items:center;
+  width:30px;
+  height:30px;
+  flex:0 0 30px;
+  border-radius:9px;
+  background:rgba(2,90,255,.12);
+  color:var(--theme-light-blue);
+  font-size:11px;
+  font-weight:800;
+}
+.default-shift-label span{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:var(--text);
+  font-size:12px;
+}
+.default-shift-row input[type=time]{
   width:100%;
   min-width:0;
+  height:40px;
   box-sizing:border-box;
+  padding:0 10px;
+  border-radius:9px;
+  font-size:13px;
 }
 @media(max-width:600px){
-  .time-fields{
-    grid-template-columns:1fr 1fr;
-    gap:10px;
+  #settingsOverlay{
+    align-items:flex-start;
+    padding:12px 0;
+    overflow-y:auto;
   }
-  .time-fields .field label{
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
+  #settingsOverlay .modal{
+    width:calc(100vw - 20px);
+    max-height:calc(100dvh - 24px);
+    padding:18px;
+    border-radius:20px;
+    margin:auto;
   }
-  .time-fields input[type="time"]{
-    height:44px;
-    padding:0 10px;
-    font-size:14px;
+  #settingsOverlay .modal h3{
+    margin-bottom:14px;
+    font-size:17px;
+  }
+  #defaultsForm{gap:7px;}
+  .defaults-columns{
+    grid-template-columns:minmax(82px,1fr) minmax(92px,1fr) minmax(92px,1fr);
+    gap:7px;
+    padding:0 2px 3px;
+    font-size:8px;
+  }
+  .default-shift-row{
+    grid-template-columns:minmax(82px,1fr) minmax(92px,1fr) minmax(92px,1fr);
+    gap:7px;
+    min-height:52px;
+    padding:6px;
+    border-radius:11px;
+  }
+  .default-shift-label{gap:7px;}
+  .default-shift-label strong{
+    width:28px;height:28px;flex-basis:28px;
+    border-radius:8px;
+    font-size:10px;
+  }
+  .default-shift-label span{font-size:11px;}
+  .default-shift-row input[type=time]{
+    height:40px;
+    padding:0 8px;
+    font-size:13px;
+  }
+  #settingsOverlay .modalbtns{
+    position:sticky;
+    bottom:0;
+    margin:12px 0 0;
+    padding-top:10px;
+    background:var(--panel);
   }
 }
-@media(max-width:380px){
-  .time-fields{
-    grid-template-columns:1fr;
+@media(max-width:370px){
+  #settingsOverlay .modal{
+    width:calc(100vw - 14px);
+    padding:14px;
   }
+  .defaults-columns{
+    grid-template-columns:minmax(70px,1fr) minmax(84px,1fr) minmax(84px,1fr);
+    gap:5px;
+  }
+  .default-shift-row{
+    grid-template-columns:minmax(70px,1fr) minmax(84px,1fr) minmax(84px,1fr);
+    gap:5px;
+    padding:5px;
+  }
+  .default-shift-label span{font-size:10px;}
+  .default-shift-row input[type=time]{padding:0 6px;font-size:12px;}
 }
 
 </style>
@@ -1436,31 +1540,47 @@ body{margin:0;}
     var defs = getDefaults();
     var form = document.getElementById("defaultsForm");
     form.innerHTML = "";
-    SHIFT_KEYS.forEach(function(code){
-      var field = document.createElement("div");
-      field.className = "field";
-      var label = document.createElement("label");
-      label.textContent = code + " — " + SHIFT_LABELS[code];
-      field.appendChild(label);
 
+    var header = document.createElement("div");
+    header.className = "defaults-columns";
+    header.innerHTML =
+      '<span></span><span>START</span><span>END</span>';
+    form.appendChild(header);
+
+    SHIFT_KEYS.forEach(function(code){
       var row = document.createElement("div");
-      row.className = "timerow";
+      row.className = "default-shift-row";
+
+      var labelWrap = document.createElement("div");
+      labelWrap.className = "default-shift-label";
+
+      var codeEl = document.createElement("strong");
+      codeEl.textContent = code;
+
+      var nameEl = document.createElement("span");
+      nameEl.textContent = SHIFT_LABELS[code];
+
+      labelWrap.appendChild(codeEl);
+      labelWrap.appendChild(nameEl);
 
       var startInput = document.createElement("input");
       startInput.type = "time";
       startInput.id = "def_start_"+code;
       startInput.value = defs[code].start;
+      startInput.setAttribute("aria-label", code + " start time");
 
       var endInput = document.createElement("input");
       endInput.type = "time";
       endInput.id = "def_end_"+code;
       endInput.value = defs[code].end;
+      endInput.setAttribute("aria-label", code + " end time");
 
+      row.appendChild(labelWrap);
       row.appendChild(startInput);
       row.appendChild(endInput);
-      field.appendChild(row);
-      form.appendChild(field);
+      form.appendChild(row);
     });
+
     document.getElementById("settingsOverlay").classList.add("show");
   }
   function closeSettings(){
