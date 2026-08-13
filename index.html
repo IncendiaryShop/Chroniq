@@ -547,18 +547,50 @@
 .ledger-shift{white-space:nowrap;}
 .ledger-shift .shift-icon{margin-right:4px;font-size:12px;width:14px;text-align:center;}
 
+
+/* Supabase authentication */
+.auth-screen{min-height:100vh;display:grid;place-items:center;padding:32px;}
+.auth-card{width:min(420px,100%);padding:32px;border:1px solid var(--line);border-radius:20px;background:var(--panel);box-shadow:0 18px 60px rgba(0,0,0,.18);}
+.auth-card h2{margin:8px 0 4px;font-size:26px;}
+.auth-subtitle{color:var(--muted);margin:0 0 24px;font-size:14px;}
+.auth-submit{width:100%;margin-top:6px;display:flex;align-items:center;justify-content:center;gap:8px;}
+.auth-error{min-height:20px;margin-top:12px;color:#dc2626;font-size:13px;}
+.header-actions{display:flex;align-items:center;gap:10px;}
+@media(max-width:520px){.auth-screen{padding:18px}.auth-card{padding:24px;}}
+
 </style>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
 </head>
 <body>
-<div class="wrap">
+<div id="authScreen" class="auth-screen">
+  <div class="auth-card">
+    <div class="brand">ShiftLedger</div>
+    <h2>Sign in</h2>
+    <p class="auth-subtitle">Sign in to access your private shift tracker.</p>
+    <form id="loginForm">
+      <div class="field">
+        <label for="loginEmail">Email</label>
+        <input type="email" id="loginEmail" autocomplete="email" required>
+      </div>
+      <div class="field">
+        <label for="loginPassword">Password</label>
+        <input type="password" id="loginPassword" autocomplete="current-password" required>
+      </div>
+      <button class="btn-save auth-submit" type="submit" id="loginBtn"><i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i> Sign in</button>
+      <div id="loginError" class="auth-error" role="alert"></div>
+    </form>
+  </div>
+</div>
+<div class="wrap" id="appShell" style="display:none;">
 
   <header>
     <div>
       <div class="brand">ShiftLedger</div>
       <h1>Shift &amp; Comp-Off Tracker</h1>
     </div>
-    <div class="savebadge" id="saveBadge"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> saved</div>
+    <div class="header-actions"><div class="savebadge" id="saveBadge"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> saved</div><button class="settingsbtn" id="logoutBtn" title="Sign out" aria-label="Sign out"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i></button></div>
   </header>
 
   <div class="monthbar">
@@ -667,23 +699,13 @@
   current.setDate(1);
   var editingKey = null; // "YYYY-M-D" for modal
 
-  // ---------- storage helpers (all wrapped, never throw) ----------
-  function safeGet(key){
-    try{
-      var v = localStorage.getItem(key);
-      return v ? JSON.parse(v) : null;
-    }catch(e){ return null; }
-  }
-  function safeSet(key, val){
-    try{
-      localStorage.setItem(key, JSON.stringify(val));
-      flashSaved();
-      return true;
-    }catch(e){
-      alert("Could not save data. Your browser storage may be full or blocked.");
-      return false;
-    }
-  }
+  // ---------- Supabase data layer ----------
+  var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+  var currentUser = null;
+  var monthCache = {};       // YYYY_M -> {day: entry}
+  var defaultsCache = null;
+  var usageCache = {};       // YYYY-MM-DD -> boolean
+
   function flashSaved(){
     var b = document.getElementById("saveBadge");
     b.classList.add("show");
@@ -691,45 +713,81 @@
     flashSaved._t = setTimeout(function(){ b.classList.remove("show"); }, 900);
   }
 
-  function getDefaults(){
-    var d = safeGet(DEFAULTS_KEY);
-    return d || FALLBACK_DEFAULTS;
-  }
-  function setDefaults(d){ safeSet(DEFAULTS_KEY, d); }
-
   function monthKey(date){
     return date.getFullYear() + "_" + (date.getMonth()+1);
   }
-  function getMonthData(date){
-    var d = safeGet(PREFIX + monthKey(date));
-    return d || {};
-  }
-  function setMonthData(date, data){
-    safeSet(PREFIX + monthKey(date), data);
+
+  function dateKey(y,m,d){
+    return y + "-" + String(m).padStart(2,"0") + "-" + String(d).padStart(2,"0");
   }
 
-  function getUsage(){
-    var u = safeGet(USAGE_KEY);
-    return u || {};
-  }
-  function setUsage(u){ safeSet(USAGE_KEY, u); }
+  function getDefaults(){ return defaultsCache || FALLBACK_DEFAULTS; }
 
-  // list every stored month key -> [{y,m}]
+  function getMonthData(date){ return monthCache[monthKey(date)] || {}; }
+
+  function getUsage(){ return usageCache; }
+
   function allMonthKeys(){
-    var out = [];
-    try{
-      for(var i=0;i<localStorage.length;i++){
-        var k = localStorage.key(i);
-        if(k && k.indexOf(PREFIX)===0){
-          var rest = k.slice(PREFIX.length); // "YYYY_M"
-          var parts = rest.split("_");
-          if(parts.length===2){
-            out.push({y:parseInt(parts[0],10), m:parseInt(parts[1],10), key:k});
-          }
-        }
-      }
-    }catch(e){}
-    return out;
+    return Object.keys(monthCache).map(function(k){
+      var p=k.split("_");
+      return {y:parseInt(p[0],10),m:parseInt(p[1],10),key:k};
+    });
+  }
+
+  async function loadSupabaseData(){
+    monthCache={}; usageCache={}; defaultsCache=null;
+    var shifts = await sb.from("shift_entries").select("work_date,shift_code,start_time,end_time,is_holiday").eq("user_id",currentUser.id);
+    if(shifts.error) throw shifts.error;
+    (shifts.data||[]).forEach(function(r){
+      var dt=r.work_date.split("-");
+      var mk=parseInt(dt[0],10)+"_"+parseInt(dt[1],10);
+      if(!monthCache[mk]) monthCache[mk]={};
+      monthCache[mk][String(parseInt(dt[2],10))]={shift:r.shift_code,isHoliday:!!r.is_holiday,start:(r.start_time||"").slice(0,5),end:(r.end_time||"").slice(0,5)};
+    });
+    var defs = await sb.from("shift_defaults").select("shift_code,start_time,end_time").eq("user_id",currentUser.id);
+    if(defs.error) throw defs.error;
+    defaultsCache=Object.assign({},FALLBACK_DEFAULTS);
+    (defs.data||[]).forEach(function(r){ defaultsCache[r.shift_code]={start:(r.start_time||"").slice(0,5),end:(r.end_time||"").slice(0,5)}; });
+    var usage = await sb.from("comp_off_usage").select("work_date,used").eq("user_id",currentUser.id);
+    if(usage.error) throw usage.error;
+    (usage.data||[]).forEach(function(r){ usageCache[r.work_date]=!!r.used; });
+  }
+
+  async function saveEntryForDay(day, data){
+    var y=current.getFullYear(), m=current.getMonth()+1;
+    var dkey=dateKey(y,m,day);
+    if(!data){
+      var del=await sb.from("shift_entries").delete().eq("user_id",currentUser.id).eq("work_date",dkey);
+      if(del.error) throw del.error;
+      if(monthCache[monthKey(current)]) delete monthCache[monthKey(current)][String(day)];
+    }else{
+      var row={user_id:currentUser.id,work_date:dkey,shift_code:data.shift,is_holiday:!!data.isHoliday,start_time:data.start||null,end_time:data.end||null};
+      var up=await sb.from("shift_entries").upsert(row,{onConflict:"user_id,work_date"}).select().single();
+      if(up.error) throw up.error;
+      if(!monthCache[monthKey(current)]) monthCache[monthKey(current)]={};
+      monthCache[monthKey(current)][String(day)]=data;
+    }
+    flashSaved();
+  }
+
+  async function saveUsageValue(dkey, used){
+    if(used){
+      var up=await sb.from("comp_off_usage").upsert({user_id:currentUser.id,work_date:dkey,used:true},{onConflict:"user_id,work_date"});
+      if(up.error) throw up.error;
+      usageCache[dkey]=true;
+    }else{
+      var del=await sb.from("comp_off_usage").delete().eq("user_id",currentUser.id).eq("work_date",dkey);
+      if(del.error) throw del.error;
+      delete usageCache[dkey];
+    }
+    flashSaved();
+  }
+
+  async function saveDefaultsToDb(defs){
+    var rows=SHIFT_KEYS.map(function(code){return {user_id:currentUser.id,shift_code:code,start_time:defs[code].start,end_time:defs[code].end};});
+    var up=await sb.from("shift_defaults").upsert(rows,{onConflict:"user_id,shift_code"});
+    if(up.error) throw up.error;
+    defaultsCache=defs; flashSaved();
   }
 
   // Migrates legacy entries (where "HOL" was a shift value) into the
@@ -876,7 +934,7 @@
     var rows = [];
 
     months.forEach(function(mk){
-      var data = safeGet(mk.key) || {};
+      var data = monthCache[mk.key] || {};
       var daysInMonth = new Date(mk.y, mk.m, 0).getDate();
       Object.keys(data).forEach(function(dayStr){
         var day = parseInt(dayStr,10);
@@ -939,11 +997,15 @@
       chk.type = "checkbox";
       chk.className = "usedchk";
       chk.checked = r.used;
-      chk.addEventListener("change", function(){
-        var u = getUsage();
-        u[r.dateKey] = chk.checked;
-        setUsage(u);
-        renderCompLedger();
+      chk.addEventListener("change", async function(){
+        chk.disabled=true;
+        try{
+          await saveUsageValue(r.dateKey, chk.checked);
+          renderCompLedger();
+        }catch(e){
+          chk.checked=!chk.checked;
+          alert("Could not update comp-off usage: " + e.message);
+        }finally{ chk.disabled=false; }
       });
       tdUsed.appendChild(chk);
       tr.appendChild(tdUsed);
@@ -1002,33 +1064,28 @@
     }
   });
 
-  document.getElementById("btnSave").addEventListener("click", function(){
+  document.getElementById("btnSave").addEventListener("click", async function(){
     if(editingKey === null) return;
-    var data = getMonthData(current);
     var shift = document.getElementById("shiftSelect").value;
     var isHoliday = document.getElementById("holidayCheck").checked;
-    if(!shift && !isHoliday){
-      delete data[editingKey];
-    } else {
-      data[editingKey] = {
-        shift: shift || null,
-        isHoliday: isHoliday,
-        start: shift && NON_WORKING.indexOf(shift)===-1 ? document.getElementById("startTime").value : "",
-        end: shift && NON_WORKING.indexOf(shift)===-1 ? document.getElementById("endTime").value : ""
-      };
-    }
-    setMonthData(current, data);
-    closeDayModal();
-    renderAll();
+    var data = (!shift && !isHoliday) ? null : {
+      shift: shift || null,
+      isHoliday: isHoliday,
+      start: shift && NON_WORKING.indexOf(shift)===-1 ? document.getElementById("startTime").value : "",
+      end: shift && NON_WORKING.indexOf(shift)===-1 ? document.getElementById("endTime").value : ""
+    };
+    var btn=this; btn.disabled=true;
+    try{ await saveEntryForDay(editingKey,data); closeDayModal(); renderAll(); }
+    catch(e){ alert("Could not save this date: " + e.message); }
+    finally{ btn.disabled=false; }
   });
 
-  document.getElementById("btnClear").addEventListener("click", function(){
+  document.getElementById("btnClear").addEventListener("click", async function(){
     if(editingKey === null) return;
-    var data = getMonthData(current);
-    delete data[editingKey];
-    setMonthData(current, data);
-    closeDayModal();
-    renderAll();
+    var btn=this; btn.disabled=true;
+    try{ await saveEntryForDay(editingKey,null); closeDayModal(); renderAll(); }
+    catch(e){ alert("Could not clear this date: " + e.message); }
+    finally{ btn.disabled=false; }
   });
 
   document.getElementById("btnCancel").addEventListener("click", closeDayModal);
@@ -1076,17 +1133,15 @@
   document.getElementById("settingsOverlay").addEventListener("click", function(e){
     if(e.target === this) closeSettings();
   });
-  document.getElementById("btnSettingsSave").addEventListener("click", function(){
+  document.getElementById("btnSettingsSave").addEventListener("click", async function(){
     var defs = {};
     SHIFT_KEYS.forEach(function(code){
-      defs[code] = {
-        start: document.getElementById("def_start_"+code).value,
-        end: document.getElementById("def_end_"+code).value
-      };
+      defs[code] = {start:document.getElementById("def_start_"+code).value,end:document.getElementById("def_end_"+code).value};
     });
-    setDefaults(defs);
-    closeSettings();
-    renderAll();
+    var btn=this; btn.disabled=true;
+    try{ await saveDefaultsToDb(defs); closeSettings(); renderAll(); }
+    catch(e){ alert("Could not save shift timings: " + e.message); }
+    finally{ btn.disabled=false; }
   });
 
   // ---------- month nav ----------
@@ -1099,8 +1154,54 @@
     renderAll();
   });
 
-  // ---------- init ----------
-  renderAll();
+  // ---------- authentication / init ----------
+  async function showApp(user){
+    currentUser=user;
+    document.getElementById("authScreen").style.display="none";
+    document.getElementById("appShell").style.display="block";
+    try{
+      await loadSupabaseData();
+      renderAll();
+    }catch(e){
+      document.getElementById("appShell").style.display="none";
+      document.getElementById("authScreen").style.display="grid";
+      document.getElementById("loginError").textContent="Could not load your tracker data: " + e.message;
+    }
+  }
+
+  async function bootstrapAuth(){
+    if(!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY || SUPABASE_PUBLISHABLE_KEY.indexOf("YOUR_")===0){
+      document.getElementById("loginError").textContent="Add your Supabase URL and publishable key to config.js first.";
+      return;
+    }
+    var sessionResult=await sb.auth.getSession();
+    if(sessionResult.error){ document.getElementById("loginError").textContent=sessionResult.error.message; return; }
+    if(sessionResult.data.session){ await showApp(sessionResult.data.session.user); }
+  }
+
+  document.getElementById("loginForm").addEventListener("submit", async function(e){
+    e.preventDefault();
+    var btn=document.getElementById("loginBtn");
+    var err=document.getElementById("loginError");
+    err.textContent=""; btn.disabled=true;
+    try{
+      var res=await sb.auth.signInWithPassword({email:document.getElementById("loginEmail").value.trim(),password:document.getElementById("loginPassword").value});
+      if(res.error) throw res.error;
+      await showApp(res.data.user);
+    }catch(ex){ err.textContent=ex.message || "Sign in failed."; }
+    finally{ btn.disabled=false; }
+  });
+
+  document.getElementById("logoutBtn").addEventListener("click", async function(){
+    await sb.auth.signOut();
+    location.reload();
+  });
+
+  sb.auth.onAuthStateChange(function(event, session){
+    if(event === "SIGNED_OUT") location.reload();
+  });
+
+  bootstrapAuth();
 })();
 </script>
 </body>
