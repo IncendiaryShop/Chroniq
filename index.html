@@ -549,14 +549,272 @@
 
 
 /* Supabase authentication */
-.auth-screen{min-height:100vh;display:grid;place-items:center;padding:32px;}
-.auth-card{width:min(420px,100%);padding:32px;border:1px solid var(--line);border-radius:20px;background:var(--panel);box-shadow:0 18px 60px rgba(0,0,0,.18);}
-.auth-card h2{margin:8px 0 4px;font-size:26px;}
-.auth-subtitle{color:var(--muted);margin:0 0 24px;font-size:14px;}
-.auth-submit{width:100%;margin-top:6px;display:flex;align-items:center;justify-content:center;gap:8px;}
-.auth-error{min-height:20px;margin-top:12px;color:#dc2626;font-size:13px;}
+.auth-screen{
+  min-height:100vh;
+  display:grid;
+  place-items:center;
+  padding:clamp(22px,5vw,48px);
+  position:relative;
+  overflow:hidden;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(255,68,51,.10), transparent 34%),
+    radial-gradient(circle at 18% 82%, rgba(124,127,224,.07), transparent 30%),
+    var(--bg);
+}
+.auth-screen::before{
+  content:"";
+  position:absolute;
+  width:min(620px,85vw);
+  aspect-ratio:1;
+  border:1px solid rgba(255,255,255,.045);
+  border-radius:50%;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  pointer-events:none;
+}
+.auth-card{
+  width:min(430px,100%);
+  position:relative;
+  z-index:1;
+  padding:clamp(28px,5vw,42px);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:26px;
+  background:linear-gradient(145deg,rgba(31,31,35,.96),rgba(20,20,23,.98));
+  box-shadow:
+    0 28px 90px rgba(0,0,0,.52),
+    0 0 0 1px rgba(255,255,255,.015) inset,
+    0 0 45px rgba(255,68,51,.07);
+  backdrop-filter:blur(18px);
+}
+.auth-brand{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-bottom:30px;
+}
+.auth-logo{
+  width:44px;
+  height:44px;
+  display:grid;
+  place-items:center;
+  flex:0 0 44px;
+  border-radius:14px;
+  color:#0A0A0C;
+  background:var(--accent);
+  box-shadow:0 8px 24px rgba(255,68,51,.25);
+  font-size:19px;
+}
+.auth-brand-text .brand{margin:0;font-size:12px;}
+.auth-private{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  margin-top:5px;
+  color:var(--muted);
+  font-size:11px;
+  letter-spacing:.2px;
+}
+.auth-private i{font-size:9px;color:var(--accent);}
+.auth-card h2{
+  margin:0;
+  font-size:clamp(27px,6vw,32px);
+  line-height:1.1;
+  letter-spacing:-.8px;
+  font-weight:800;
+}
+.auth-subtitle{
+  color:var(--muted);
+  margin:9px 0 28px;
+  font-size:14px;
+  line-height:1.6;
+}
+.auth-form .field{margin-bottom:17px;}
+.auth-form label{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  margin-bottom:8px;
+}
+.auth-form label i{
+  color:var(--muted);
+  width:13px;
+  text-align:center;
+  font-size:11px;
+}
+.auth-input-wrap{position:relative;}
+.auth-input-wrap input{
+  width:100%;
+  padding-right:46px;
+}
+.auth-input-wrap > i.input-icon{
+  position:absolute;
+  left:15px;
+  top:50%;
+  transform:translateY(-50%);
+  color:#68686e;
+  font-size:13px;
+  pointer-events:none;
+}
+.auth-input-wrap input.has-icon{padding-left:42px;}
+.auth-password-toggle{
+  position:absolute;
+  right:7px;
+  top:50%;
+  transform:translateY(-50%);
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  border:0;
+  border-radius:9px;
+  background:transparent;
+  color:#77777e;
+  cursor:pointer;
+}
+.auth-password-toggle:hover{color:var(--text);background:var(--panel-2);}
+.auth-submit{
+  width:100%;
+  margin-top:8px;
+  min-height:46px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  border-radius:12px;
+  font-weight:700;
+  box-shadow:0 10px 28px rgba(255,68,51,.16);
+}
+.auth-submit:hover{transform:translateY(-1px);box-shadow:0 14px 32px rgba(255,68,51,.22);}
+.auth-error{
+  min-height:20px;
+  margin-top:13px;
+  padding:0 2px;
+  color:#ff7568;
+  font-size:12px;
+  line-height:1.45;
+}
+.auth-footer{
+  margin-top:24px;
+  padding-top:18px;
+  border-top:1px solid rgba(255,255,255,.06);
+  text-align:center;
+  color:#626268;
+  font-size:10px;
+  letter-spacing:.3px;
+}
+.auth-footer i{margin-right:5px;color:#77777e;}
 .header-actions{display:flex;align-items:center;gap:10px;}
-@media(max-width:520px){.auth-screen{padding:18px}.auth-card{padding:24px;}}
+@media(max-width:520px){
+  .auth-screen{padding:16px;}
+  .auth-card{padding:26px 22px;border-radius:22px;}
+  .auth-brand{margin-bottom:25px;}
+}
+@media(prefers-reduced-motion:reduce){
+  .auth-submit{transition:none;}
+}
+
+
+/* Modern login controls */
+.auth-form .field{margin-bottom:20px;}
+.auth-form label{
+  display:block;
+  margin:0 0 8px 2px;
+  color:#a8a8ae;
+  font-size:12px;
+  font-weight:600;
+  letter-spacing:.01em;
+}
+.auth-input-wrap{position:relative;}
+.auth-input-wrap input{
+  box-sizing:border-box;
+  width:100%;
+  height:50px;
+  padding:0 46px 0 44px !important;
+  border:1px solid #303036;
+  border-radius:12px;
+  background:#16161a;
+  color:#f4f4f5;
+  font-size:14px;
+  outline:none;
+  box-shadow:0 1px 0 rgba(255,255,255,.025) inset;
+  transition:border-color .18s ease,box-shadow .18s ease,background .18s ease;
+}
+.auth-input-wrap input::placeholder{color:#5f6067;}
+.auth-input-wrap input:hover{border-color:#3c3c43;background:#18181c;}
+.auth-input-wrap input:focus{
+  border-color:rgba(255,68,51,.75);
+  background:#18181c;
+  box-shadow:0 0 0 3px rgba(255,68,51,.10),0 1px 0 rgba(255,255,255,.03) inset;
+}
+.auth-input-wrap > i.input-icon{
+  position:absolute;
+  left:16px;
+  top:50%;
+  transform:translateY(-50%);
+  width:15px;
+  color:#686970;
+  font-size:13px;
+  pointer-events:none;
+  z-index:1;
+}
+.auth-input-wrap input:focus ~ i.input-icon,
+.auth-input-wrap:focus-within > i.input-icon{color:#ff6859;}
+.auth-password-toggle{
+  position:absolute;
+  right:7px;
+  top:50%;
+  transform:translateY(-50%);
+  width:36px;
+  height:36px;
+  display:grid;
+  place-items:center;
+  border:0;
+  border-radius:9px;
+  background:transparent;
+  color:#696a71;
+  cursor:pointer;
+  transition:background .16s ease,color .16s ease;
+}
+.auth-password-toggle:hover{
+  background:#242429;
+  color:#d4d4d8;
+}
+.auth-password-toggle:focus-visible{
+  outline:2px solid rgba(255,68,51,.65);
+  outline-offset:1px;
+}
+.auth-submit{
+  position:relative;
+  width:100%;
+  height:50px;
+  min-height:50px;
+  margin-top:4px;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  background:#f04433;
+  color:#fff;
+  font-size:13px;
+  font-weight:700;
+  letter-spacing:.01em;
+  box-shadow:0 8px 22px rgba(240,68,51,.18),0 1px 0 rgba(255,255,255,.12) inset;
+  transition:transform .16s ease,background .16s ease,box-shadow .16s ease;
+}
+.auth-submit:hover{
+  transform:translateY(-1px);
+  background:#f54d3d;
+  box-shadow:0 11px 28px rgba(240,68,51,.24),0 1px 0 rgba(255,255,255,.14) inset;
+}
+.auth-submit:active{transform:translateY(0);box-shadow:0 5px 14px rgba(240,68,51,.16);}
+.auth-submit:focus-visible{
+  outline:2px solid rgba(255,255,255,.85);
+  outline-offset:3px;
+}
+.auth-submit i{font-size:12px;}
 
 </style>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
@@ -566,21 +824,49 @@
 <body>
 <div id="authScreen" class="auth-screen">
   <div class="auth-card">
-    <div class="brand">ShiftLedger</div>
-    <h2>Sign in</h2>
-    <p class="auth-subtitle">Sign in to access your private shift tracker.</p>
-    <form id="loginForm">
-      <div class="field">
-        <label for="loginEmail">Email</label>
-        <input type="email" id="loginEmail" autocomplete="email" required>
+    <div class="auth-brand">
+      <div class="auth-logo"><i class="fa-solid fa-calendar-check" aria-hidden="true"></i></div>
+      <div class="auth-brand-text">
+        <div class="brand">ShiftLedger</div>
+        <div class="auth-private"><i class="fa-solid fa-lock" aria-hidden="true"></i> Private workspace</div>
       </div>
+    </div>
+
+    <h2>Welcome back.</h2>
+    <p class="auth-subtitle">Sign in to manage your shifts and keep your comp-off history synced everywhere.</p>
+
+    <form id="loginForm" class="auth-form">
       <div class="field">
-        <label for="loginPassword">Password</label>
-        <input type="password" id="loginPassword" autocomplete="current-password" required>
+        <label for="loginEmail"><i class="fa-solid fa-envelope" aria-hidden="true"></i> Email address</label>
+        <div class="auth-input-wrap">
+          <i class="fa-solid fa-at input-icon" aria-hidden="true"></i>
+          <input class="has-icon" type="email" id="loginEmail" autocomplete="email" placeholder="you@example.com" required>
+        </div>
       </div>
-      <button class="btn-save auth-submit" type="submit" id="loginBtn"><i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i> Sign in</button>
+
+      <div class="field">
+        <label for="loginPassword"><i class="fa-solid fa-key" aria-hidden="true"></i> Password</label>
+        <div class="auth-input-wrap">
+          <i class="fa-solid fa-lock input-icon" aria-hidden="true"></i>
+          <input class="has-icon" type="password" id="loginPassword" autocomplete="current-password" placeholder="Enter your password" required>
+          <button type="button" class="auth-password-toggle" id="togglePassword" aria-label="Show password" title="Show password">
+            <i class="fa-solid fa-eye" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+
+      <button class="btn-save auth-submit" type="submit" id="loginBtn">
+        <i class="fa-solid fa-arrow-right-to-bracket" aria-hidden="true"></i>
+        <span>Sign in to ShiftLedger</span>
+      </button>
+
       <div id="loginError" class="auth-error" role="alert"></div>
     </form>
+
+    <div class="auth-footer">
+      <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>
+      Your shift data is securely synced with Supabase.
+    </div>
   </div>
 </div>
 <div class="wrap" id="appShell" style="display:none;">
@@ -1177,6 +1463,19 @@
     var sessionResult=await sb.auth.getSession();
     if(sessionResult.error){ document.getElementById("loginError").textContent=sessionResult.error.message; return; }
     if(sessionResult.data.session){ await showApp(sessionResult.data.session.user); }
+  }
+
+  var togglePassword = document.getElementById("togglePassword");
+  if(togglePassword){
+    togglePassword.addEventListener("click", function(){
+      var input = document.getElementById("loginPassword");
+      var icon = togglePassword.querySelector("i");
+      var showing = input.type === "text";
+      input.type = showing ? "password" : "text";
+      icon.className = showing ? "fa-solid fa-eye" : "fa-solid fa-eye-slash";
+      togglePassword.setAttribute("aria-label", showing ? "Show password" : "Hide password");
+      togglePassword.setAttribute("title", showing ? "Show password" : "Hide password");
+    });
   }
 
   document.getElementById("loginForm").addEventListener("submit", async function(e){
