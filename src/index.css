@@ -395,12 +395,23 @@ body {
   background: var(--panel-2);
 }
 .cell.current-day {
-  border-color: var(--accent);
-  background: linear-gradient(145deg, var(--accent-tint), rgba(17, 17, 19, 0.98));
+  background: var(--accent) !important;
+  border: none;
+  box-shadow: none;
 }
+
 .cell.current-day .datenum {
-  color: var(--accent);
-  font-weight: 900;
+  color: var(--on-accent);
+}
+
+.cell.current-day .badge {
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+}
+
+.cell.current-day .badge,
+.cell.current-day .badge * {
+  color: #fff !important;
 }
 .cell.range-preview {
   border-color: var(--accent);
